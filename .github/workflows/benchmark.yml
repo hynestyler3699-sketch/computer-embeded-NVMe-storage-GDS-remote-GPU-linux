@@ -1,0 +1,30 @@
+name: Benchmark
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 02:00 UTC
+  workflow_dispatch:
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake
+      
+      - name: Build benchmarks
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. -DBUILD_BENCHMARKS=ON
+          cmake --build . --target benchmarks || echo "Benchmark target not found"
+      
+      - name: Run benchmarks
+        run: |
+          if [ -f build/benchmarks/run_benchmarks ]; then
+            ./build/benchmarks/run_benchmarks
+          else
+            echo "No benchmark binary found - placeholder run"
+          fi

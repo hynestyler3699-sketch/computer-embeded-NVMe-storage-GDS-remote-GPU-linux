@@ -1,0 +1,53 @@
+# Use the official NVIDIA L4T PyTorch image for Jetson (JetPack 6.0 / r36.2.0)
+# This provides PyTorch pre-compiled for the AGX Thor/Orin architecture.
+FROM nvcr.io/nvidia/l4t-pytorch:r36.2.0-py3
+
+# Set environment variables to avoid interactive prompts during build
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+# Set the working directory
+WORKDIR /app
+
+# Install basic system utilities
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    nvme-cli \
+    xfce4 \
+    xfce4-goodies \
+    tigervnc-standalone-server \
+    novnc \
+    python3-websockify \
+    python3-numpy \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies for Constitutional AI
+# Note: CMAKE_ARGS="-DLLAMA_CUBLAS=on" enables GPU acceleration for llama-cpp-python
+RUN CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip3 install --no-cache-dir \
+    fastapi \
+    uvicorn \
+    pydantic \
+    prometheus_client \
+    huggingface_hub \
+    llama-cpp-python
+
+# Download the Quantized Model (Llama-2-7B-Chat-GGUF)
+# We download to /app/models so the service can load it locally
+RUN huggingface-cli download TheBloke/Llama-2-7B-Chat-GGUF llama-2-7b-chat.Q4_K_M.gguf \
+    --local-dir /app/models \
+    --local-dir-use-symlinks False
+
+# Copy the verification script
+COPY verify_signature.py /app/scripts/verify_signature.py
+COPY start-gui.sh /app/scripts/start-gui.sh
+COPY gpu-mon.sh /app/scripts/gpu-mon.sh
+
+# Copy Constitutional AI Service Code
+COPY constitutional_ai /app/constitutional_ai
+
+# Expose VNC (5901) and NoVNC (6901) ports
+EXPOSE 5901 6901
+
+# Default command launches the GUI
+CMD ["bash", "/app/scripts/start-gui.sh"]
