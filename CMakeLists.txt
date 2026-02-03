@@ -49,7 +49,6 @@ if(ENABLE_GDS)
     find_library(CUFILE_LIBRARY cufile PATHS /usr/local/cuda/lib64)
     if(CUFILE_LIBRARY)
         message(STATUS "cuFile found: ${CUFILE_LIBRARY}")
-        add_definitions(-DHAVE_GDS)
     else()
         message(WARNING "cuFile not found, disabling GDS support")
         set(ENABLE_GDS OFF)
@@ -67,17 +66,30 @@ set(CV_SOURCES
 add_library(cv_algorithms STATIC ${CV_SOURCES})
 target_link_libraries(cv_algorithms PRIVATE m)
 
+if(ENABLE_GDS)
+    add_library(gds_runtime
+        src/gds/gds_real.c
+    )
+    target_compile_definitions(gds_runtime PUBLIC ENABLE_GDS HAVE_GDS)
+    target_link_libraries(gds_runtime PUBLIC ${CUDA_LIBRARIES} ${CUFILE_LIBRARY})
+else()
+    add_library(gds_runtime
+        src/gds/gds_stub.c
+    )
+endif()
+target_include_directories(gds_runtime PUBLIC include)
+
 # Examples
 if(BUILD_EXAMPLES)
     add_executable(basic_usage examples/basic_usage.c)
     target_link_libraries(basic_usage PRIVATE cv_algorithms m)
     
-    add_executable(gds_integration examples/gds_integration.c)
-    target_link_libraries(gds_integration PRIVATE m)
-    if(ENABLE_CUDA AND ENABLE_GDS)
-        target_link_libraries(gds_integration PRIVATE 
-            ${CUDA_LIBRARIES} 
-            ${CUFILE_LIBRARY}
+    if(ENABLE_GDS)
+        add_executable(gds_integration examples/gds_integration.c)
+        target_link_libraries(gds_integration
+            PRIVATE
+                gds_runtime
+                Threads::Threads
         )
     endif()
 endif()
