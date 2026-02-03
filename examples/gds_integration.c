@@ -17,6 +17,10 @@
 #include <time.h>
 #include "../include/pytorch_gds_integration.h"
 
+#ifndef ENABLE_GDS
+#error "gds_integration example requires ENABLE_GDS=ON"
+#endif
+
 #define BUFFER_SIZE (64 * 1024 * 1024)  /* 64 MB */
 #define BATCH_SIZE 32
 #define NUM_BATCHES 10
